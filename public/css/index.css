@@ -1,0 +1,136 @@
+body {
+    font-family: 'Source Sans Pro', sans-serif;
+    box-sizing: border-box;
+}
+table {
+    border-spacing:0;
+    border:1px solid rgb(197, 197, 197);
+    text-align:center;
+}
+tr {
+    border-bottom:1px solid black;
+}
+td {
+    margin:0;
+    padding:10px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+td a {
+    color:rgb(116, 116, 116);
+    text-decoration: underline;
+}
+td a:hover {
+    color:black;
+}
+h1,h2,h3,h4,h5,h6 {
+    font-weight:normal;
+}
+input, .modal-btn {
+    font-family: 'Raleway', sans-serif;
+    padding:10px 20px;
+    width:200px;
+    margin:10px 20px;
+    border:1px solid rgb(209, 209, 209);
+    transition: 0.3s all ease-in-out;
+    text-decoration: none;
+}
+input:focus, .modal-btn:focus {
+    outline:none;
+    border-radius:0;
+    border:1px solid #000000;
+}
+input[type=submit], .modal-btn {
+    background:transparent;
+    border-radius:0;
+    color:black;
+    border:1px solid black;
+    width:unset;
+}
+input[type=submit]:hover, .modal-btn:hover {
+    cursor:pointer;
+    background: black;
+    color:white;
+    /* border: 1px solid white; */
+}
+#existingFilters {
+    font-size:12px;
+    margin-left:20px;
+}
+.filter {
+    width:100%;
+    display:flex;
+    justify-content: space-around;
+}
+.filter-icon {
+    color:red;
+    opacity:0.75;
+}
+.filter-list {
+    text-overflow: ellipsis;
+    overflow: hidden; 
+    width: 160px; 
+    white-space: nowrap;
+}
+.modal {
+    -webkit-box-shadow: 10px 0px 62px -31px rgba(0,0,0,0.75);
+    -moz-box-shadow: 10px 0px 62px -31px rgba(0,0,0,0.75);
+    box-shadow: 10px 0px 62px -31px rgba(0,0,0,0.75);
+    background: #f8f8f8;
+    border:1px solid rgb(202, 202, 202);
+    height:50vh;
+}
+.close-modal {
+    background-image:none !important;
+    background:red;
+    top:10px !important;
+    right:10px !important;
+    width:10px !important;
+    height:10px !important;
+    opacity:0.8;
+    border-radius:300px;
+    transition: 0.2s all ease-in-out;
+}
+.close-modal:hover {
+    opacity:1;
+}
+.yellow {
+    background:yellow
+}
+.green {
+    background:green;
+}
+@media(max-width:768px) {
+    .modal-btn.insideModal {
+        padding:10px 5px;
+        margin:0;
+    }
+}
+#status {
+    opacity:0.8;
+    font-size:12px;
+}
+.popup {
+    position:fixed;
+    top:10px;
+    right:10px; 
+    background:rgb(65, 65, 65);
+    width:300px;
+    height:80px;
+    color:rgb(255, 255, 255);
+    font-size:12px;
+    z-index:3000;
+    border-radius:5px;
+}
+.popup:hover {
+    cursor:pointer;
+}
+.popup-heading {
+    margin:0 10px;
+    line-height:5px;
+}
+.popup-text {
+    opacity:0.5;
+    margin:0 10px;
+}
