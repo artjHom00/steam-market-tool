@@ -20,17 +20,16 @@
   </head>
 
   <body>
+    <!-- notification popup -->
     <div class="popup" style="opacity: 0;" id="popup">
       <div class="popup-heading">
         <h3>Authorization</h3>
       </div>
       <div class="popup-text">
-        <p>Success! Wait 10+- seconds for authorization to proceed...</p>
+        <h2>Success! Wait 10+- seconds for authorization to proceed...</h2>
       </div>
     </div>
-
-    <!-- Link to open the modal -->
-
+    <!-- heading -->
     <h2 style="margin-left: 20px;">[cs:go] market tool</h2>
     <div id="status" style="margin-left: 20px;">
       <div class="status-log">
@@ -48,22 +47,23 @@
         <span id="status-err__text">no errors</span>
       </div>
     </div>
+    <!-- parse settings -->
     <div id="filters">
-      <h3 style="margin-left: 20px;">add</h3>
-      <form action="/" method="POST" style="display: flex;">
+      <h3 style="margin-left: 20px;">parse</h3>
+      <div style="display: flex;">
         <input
           type="text"
-          name="link"
-          placeholder="Enter delay while crawlin'"
+          id="delay"
+          placeholder="enter delay while crawlin'"
           autocomplete="off"
         />
         <br />
-        <input type="submit" value="start parsing!" />
-        <input type="submit" value="stop parsing!" />
-      </form>
+        <button id="start" value="start parsing!">start parsing!</button>
+        <button id="stop" value="stop parsing!">stop parsing!</button>
+      </div>
     </div>
     <div id="logIntoAccount">
-      <h3 style="margin-left: 20px;">Get into your account</h3>
+      <h3 style="margin-left: 20px;">authorize to your account</h3>
       <form id="logIntoAccountForm">
         <input
           name="login"
@@ -90,22 +90,107 @@
       </form>
     </div>
     <script src="/js/libs/jquery.js"></script>
-    <script src="/js/utils/addNewField.js"></script>
-    <script src="/js/utils/clicks.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-      // connecting to server
+      /* connecting to server */
       const socket = io();
 
+      /* on successful authorization */
+      socket.on("successfully authorized", function () {
+        $("#status-log__text").text("logged");
+        $("#status-log__icon").html('<i class="fas fa-check"></i>');
+        $("#status-log__icon").css("color", "rgb(54, 204, 54)");
+        $("#popup").animate(
+          {
+            opacity: 0,
+          },
+          200
+        );
+      });
+      /* on failure */
+      socket.on("failed to authorize", function () {
+        $("#status-log__text").text("error while authorizing");
+        $("#status-log__icon").html('<i class="fas fa-times"></i>');
+        $("#status-log__icon").css("color", "rgb(255, 55, 55)");
+        $("#popup").animate(
+          {
+            opacity: 0,
+          },
+          200
+        );
+      });
+      /* if user started parsing without steam account - show him popup warning */
+      socket.on("failed to parse", function () {
+        $("#popup").html(`
+        <div class="popup-heading">
+          <h3>Failed!</h3>
+        </div>
+        <div class="popup-text">
+          <h3>Authorize to your steam to start!</h3>
+        </div>
+        `);
+        // popup visible
+        $("#popup").animate(
+          {
+            opacity: 1,
+          },
+          200
+        );
+      });
+      /* restore status of authorization on connection */
+      socket.on("restore status of authorization", function (data) {
+        if (data.authorized) {
+          $("#status-log__text").text("logged");
+          $("#status-log__icon").html('<i class="fas fa-check"></i>');
+          $("#status-log__icon").css("color", "rgb(54, 204, 54)");
+        }
+        if (data.errors) {
+          $("#status-log__text").text(data.errors);
+          $("#status-log__icon").html(
+            '<i class="fas fa-exclamation-triangle">'
+          );
+          $("#status-log__icon").css("color", "rgb(255, 55, 55)");
+        }
+      });
+
+      /* CLICKS */
+
+      /* closes popup */
+      $("#popup").click(function (e) {
+        e.preventDefault();
+        $("#popup").animate(
+          {
+            opacity: 0,
+          },
+          200
+        );
+      });
+      /* starts parsing & passing user's defined delay */
+      $("#start").click(function (e) {
+        e.preventDefault();
+        socket.emit("start parsing", parseInt($("#delay").val()));
+      });
+      /* stops parsing & passing user's defined delay */
+      $("#stop").click(function (e) {
+        e.preventDefault();
+        socket.emit("stop parsing");
+      });
       /*
-        when submitting a form, 
-        all data goes to server,
-        where puppeteer authorizes to steam account
-        */
+      when submitting a form,
+      all data goes to server,
+      where puppeteer authorizes to steam account
+      */
       $("#logIntoAccountForm").submit(function (e) {
         e.preventDefault();
 
+        $("#popup").html(`
+          <div class="popup-heading">
+            <h3>Authorization</h3>
+          </div>
+          <div class="popup-text">
+            <h2>Success! Wait 10+- seconds for authorization to proceed...</h2>
+          </div>
+        `);
         // popup visible
         $("#popup").animate(
           {
@@ -124,45 +209,6 @@
           steamPassword: password,
           steamGuard: guardCode,
         });
-      });
-      // on successful authorization
-      socket.on("successfully authorized", () => {
-        $("#status-log__text").text("logged");
-        $("#status-log__icon").html('<i class="fas fa-check"></i>');
-        $("#status-log__icon").css("color", "rgb(54, 204, 54)");
-        $("#popup").animate(
-          {
-            opacity: 0,
-          },
-          200
-        );
-      });
-      // on failure
-      socket.on("failed to authorize", () => {
-        $("#status-log__text").text("error while authorizing");
-        $("#status-log__icon").html('<i class="fas fa-times"></i>');
-        $("#status-log__icon").css("color", "rgb(255, 55, 55)");
-        $("#popup").animate(
-          {
-            opacity: 0,
-          },
-          200
-        );
-      });
-      // restore status of authorization on connection
-      socket.on("restore status of authorization", (data) => {
-        if (data.authorized) {
-          $("#status-log__text").text("logged");
-          $("#status-log__icon").html('<i class="fas fa-check"></i>');
-          $("#status-log__icon").css("color", "rgb(54, 204, 54)");
-        }
-        if (data.errors) {
-          $("#status-log__text").text(data.errors);
-          $("#status-log__icon").html(
-            '<i class="fas fa-exclamation-triangle">'
-          );
-          $("#status-log__icon").css("color", "rgb(255, 55, 55)");
-        }
       });
     </script>
   </body>

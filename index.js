@@ -1,3 +1,4 @@
+console.clear();
 // creating server + connecting socket.io
 const express = require("express");
 const app = express();
@@ -8,26 +9,23 @@ const io = require("socket.io")(server);
 const routes = require("./routes/mainRoutes");
 // custom modules
 const puppeteer = require("puppeteer");
-const { exec } = require("child_process");
-const cron = require("node-cron");
 const bodyParser = require("body-parser");
-let flags = require("./utils/obj");
-// initializing sequelize
-const Sequelize = require("sequelize");
-const sequelize = new Sequelize("enot", "root", "", {
-  dialect: "mysql",
-  logging: false,
-});
-var browserAutoBuy; // making the browser's variable global
+let flags = require("./utils/flags");
+var browser; // making the browser's variable global
 var page; // same for the authorizing page
 
 // starting browser (crawler)
 (async () => {
-  browserAutoBuy = await puppeteer.launch({
+  browser = await puppeteer.launch({
     headless: false,
-    // args:[  '--proxy-server=socks5://127.0.0.1:9050']
+    args: ["--window-size=1920,1080"],
   });
-  page = await browserAutoBuy.newPage();
+
+  page = await browser.newPage();
+  await page.setViewport({
+    width: 1920,
+    height: 1080,
+  });
   await page.goto("https://steamcommunity.com/login/home/");
 })();
 
@@ -51,7 +49,7 @@ io.on("connection", (socket) => {
     errors: flags["errors"],
   });
   socket.on("authorize in steam", async (data) => {
-    // authorizing to steam and restoring all existing filter
+    // authorizing to steam and restoring all existing filter (code might be a lil bit sloppy because of attracting with DOM)
     await page.type("#steamAccountName", data.steamLogin); // type user's login
     await page.type("#steamPassword", data.steamPassword); // type user's password
     await page.click("#SteamLogin");
@@ -67,101 +65,6 @@ io.on("connection", (socket) => {
           .waitForSelector(".profile_header") // event: on profile's page username popup
           .then(() => {
             console.log("[authorization] successfully authorized!");
-            sequelize
-              .query(`SELECT * FROM filters`, {
-                type: Sequelize.QueryTypes.SELECT,
-              })
-              .then(async (result) => {
-                // get existing filters
-                for (let i = 0; i < result.length; i++) {
-                  // loop - for each filter
-                  let parsingJSON = await JSON.parse(result[i].obj); // str to JSON
-                  flags["parsingPages"][i] = await browserAutoBuy.newPage(); // insert into utils/obj.js -> parsingPages new page
-                  await flags["parsingPages"][i].setViewport({
-                    width: 1920,
-                    height: 1080,
-                  }); // set viewport, so it would show stickers on hover
-                  await flags["parsingPages"][i].waitFor(2000); // to prevent bans from steam
-                  await flags["parsingPages"][i].goto(parsingJSON.link); // get link on skin from filter
-                  let data = await flags["parsingPages"][i].evaluate(() => {
-                    const mouseoverEvent = new Event("mouseover"); // add event to hover on element
-                    let stickers = {};
-                    if (document.querySelector("#sticker_info")) {
-                      // if there is stickers on first weapon
-                      document.querySelector(
-                        "#sticker_info"
-                      ).parentNode.innerText = ""; // delete block with it
-                    }
-                    for (let j = 2; j <= 11; j++) {
-                      // loop - all weapon rows on page
-                      if (
-                        document
-                          .querySelector(
-                            `#searchResultsRows > .market_listing_row:nth-child(${j}) > .market_listing_item_img_container > img`
-                          )
-                          .dispatchEvent(mouseoverEvent)
-                      ) {
-                        // hover on image preview, so stickers are available to get
-                        if (document.querySelector("#sticker_info")) {
-                          // if there are stickers on weapons
-                          stickers[j] = document
-                            .querySelector("#sticker_info")
-                            .innerText.replace("Наклейка: ", "")
-                            .split(", "); // insert into object 'stickers' key: [array of stickers]
-                          // buy button document.querySelector("#searchResultsRows > .market_listing_row:nth-child(8) > .market_listing_price_listings_block > .market_listing_right_cell.market_listing_action_buttons > .market_listing_buy_button > a")
-                        }
-                      }
-                    }
-                    return stickers;
-                  });
-                  for (key in data) {
-                    // after we got object with weapons & stickers - we check if they satisfy to our filters. loop - get arrays of stickers
-                    // var needToBuy = false
-                    var totalSum = 0; // total sum of stickers
-                    for (let j = 0; j < data[key].length; j++) {
-                      // loop - for each sticker in array
-                      await sequelize
-                        .query(
-                          `SELECT price FROM  stickers WHERE name LIKE "%${data[key][j]}%"`,
-                          { type: Sequelize.QueryTypes.SELECT }
-                        )
-                        .then(async (prices) => {
-                          // get sticker's price from it's name
-                          totalSum = totalSum + parseInt(prices[0].price); // getting total sum of sticker
-                          /*
-                                            ДЕРЬМОКОД
-                                            getting stickers which are same, as from the filter
-                                            */
-                          for (keyJSON in parsingJSON) {
-                            if (
-                              keyJSON != "link" &&
-                              keyJSON != "weaponPrice" &&
-                              keyJSON != "stickersTotalPrice"
-                            ) {
-                              if (keyJSON.indexOf("NameSlotNo") !== -1) {
-                                if (data[key][j] == parsingJSON[keyJSON]) {
-                                  await console.log(
-                                    "[found] needed sticker - " +
-                                      data[key][j] +
-                                      " - " +
-                                      parsingJSON[keyJSON]
-                                  );
-                                }
-                              }
-                            }
-                          }
-                        });
-                    }
-                    if (totalSum >= parseInt(parsingJSON.stickersTotalPrice)) {
-                      // if total sum of stickers is bigger than in filter - buy weapon.
-                      await console.log(
-                        "[found] total sum of stickers is bigger than in filter. id: " +
-                          key
-                      );
-                    }
-                  }
-                }
-              });
             io.emit("successfully authorized");
             flags["authorized"] = true;
           })
@@ -177,64 +80,90 @@ io.on("connection", (socket) => {
         });
       });
   });
+  socket.on("start parsing", async (delay) => {
+    if (flags.authorized) {
+      /* data */
+      let weapons = {};
+      /* show user's defined delay */
+      console.log(delay);
+      /* go to STICKERS filter and search ONLY weapon skins */
+      await page.goto(
+        "https://steamcommunity.com/market/search?q=STICKER&descriptions=1&category_730_ItemSet%5B%5D=any&category_730_ProPlayer%5B%5D=any&category_730_StickerCapsule%5B%5D=any&category_730_TournamentTeam%5B%5D=any&category_730_Weapon%5B%5D=any&category_730_Rarity%5B%5D=tag_Rarity_Common_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Rare_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Uncommon_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Mythical_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Legendary_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Ancient_Weapon&appid=730"
+      );
+      /* get amount of pages to parse */
+      let pagesAmount = await page.evaluate(() => {
+        return parseInt(
+          document.querySelectorAll(".market_paging_pagelink")[
+            document.querySelectorAll(".market_paging_pagelink").length - 1
+          ].innerText
+        );
+      });
+      /* go through all pages */
+      for (let i = 1; i <= pagesAmount; i++) {
+        const marketPage = await browser.newPage();
+        await marketPage.setViewport({
+          width: 1920,
+          height: 1080,
+        });
+        await marketPage.goto(
+          `https://steamcommunity.com/market/search?q=STICKER&descriptions=1&category_730_ItemSet%5B%5D=any&category_730_ProPlayer%5B%5D=any&category_730_StickerCapsule%5B%5D=any&category_730_TournamentTeam%5B%5D=any&category_730_Weapon%5B%5D=any&category_730_Rarity%5B%5D=tag_Rarity_Common_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Rare_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Uncommon_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Mythical_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Legendary_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Ancient_Weapon&appid=730#p${i}_default_desc`
+        );
+        /* user's delay */
+        await marketPage.waitFor(delay);
+        /* pushes into array weapon links & gets its amount (i mean how much weapons on the page) */
+        let skinsPage = await marketPage.evaluate(() => {
+          let data = [];
+          for (
+            let d = 0;
+            d < document.querySelectorAll(".market_listing_row_link").length;
+            d++
+          ) {
+            data.push(
+              document.querySelectorAll(".market_listing_row_link")[d].href
+            );
+          }
+          return data;
+        });
+        /* goes through all weapons */
+        for (let j = 0; j < skinsPage.length; j++) {
+          await marketPage.goto(skinsPage[j]).then(async () => {
+            /* waits */
+            await marketPage.waitFor(delay);
+            /* gets how much weapons on the current page */
+            let skinsAmount = await page.evaluate(() => {
+              return parseInt(
+                document.querySelectorAll(".market_listing_item_img").length - 1
+              );
+            });
+            /* goes through all weapons  */
+            for (let g = 0; g < skinsAmount; g++) {
+              /* hovers image to get additional info (especially stickers) */
+              await marketPage
+                .hover(".market_listing_item_img")
+                .then(async () => {
+                  /* gets array of stickers */
+                  let weaponStickers = await marketPage.evaluate(async () => {
+                    return document
+                      .querySelectorAll("#sticker_info")[1]
+                      .innerText.trim()
+                      .split("Наклейка: ")[1]
+                      .split(", ");
+                  });
+                  /* inserts into defined earlier object */
+                  weapons[skinsPage] = weaponStickers;
+                  /*
+                  TODO:
+                  CHECK FOR MULTIPLE STICKERS & SEND 'EM
+                  */
+                });
+            }
+          });
+        }
+        await marketPage.close();
+      }
+      await browser.close();
+    } else {
+      io.emit("failed to parse");
+    }
+  });
 });
-
-// cron.schedule('*/20 * * * * *', async () => {
-//     if (flags["authorized"] === true) {
-//         sequelize.query(`SELECT * FROM filters`, { type: Sequelize.QueryTypes.SELECT }).then(async result => { // get existing filters
-//             for (let i = 0; i < result.length; i++) { // loop - for each filter
-//                 let parsingJSON = await JSON.parse(result[i].obj) // str to JSON
-//                 flags["parsingPages"][i].reload({
-//                     waitUntil: ["networkidle0", "domcontentloaded"]
-//                 }).then(async () => {
-//                     let data = await flags["parsingPages"][i].evaluate(() => {
-//                         const mouseoverEvent = new Event('mouseover') // add event to hover on element
-//                         let stickers = {}
-//                         if (document.querySelector("#sticker_info")) { // if there is stickers on first weapon
-//                             document.querySelector("#sticker_info").parentNode.innerText = "" // delete block with it
-//                         }
-//                         for (let j = 2; j <= 11; j++) { // loop - all weapon rows on page
-//                             if (document.querySelector(`#searchResultsRows > .market_listing_row:nth-child(${j}) > .market_listing_item_img_container > img`).dispatchEvent(mouseoverEvent)) { // hover on image preview, so stickers are available to get
-//                                 if (document.querySelector("#sticker_info")) { // if there are stickers on weapons
-//                                     stickers[j] = document.querySelector("#sticker_info").innerText.replace("Наклейка: ", "").split(", ") // insert into object 'stickers' key: [array of stickers]
-//                                     // buy button document.querySelector("#searchResultsRows > .market_listing_row:nth-child(8) > .market_listing_price_listings_block > .market_listing_right_cell.market_listing_action_buttons > .market_listing_buy_button > a")
-//                                 }
-//                             }
-//                         }
-//                         return stickers
-//                     })
-//                     for (key in data) { // after we got object with weapons & stickers - we check if they satisfy to our filters. loop - get arrays of stickers
-//                         // var needToBuy = false
-//                         var totalSum = 0 // total sum of stickers
-//                         for (let j = 0; j < data[key].length; j++) { // loop - for each sticker in array
-//                             await sequelize.query(`SELECT price FROM  stickers WHERE name LIKE "%${data[key][j]}%"`, { type: Sequelize.QueryTypes.SELECT }).then(async prices => { // get sticker's price from it's name
-//                                 totalSum = totalSum + parseInt(prices[0].price) // getting total sum of sticker
-//                                 /*
-//                                     ДЕРЬМОКОД
-//                                     getting stickers which are same, as from the filter
-//                                 */
-//                                 for (keyJSON in parsingJSON) {
-//                                     if (keyJSON != "link" && keyJSON != "weaponPrice" && keyJSON != "stickersTotalPrice") {
-//                                         if (keyJSON.indexOf("NameSlotNo") !== -1) {
-//                                             if (data[key][j] == parsingJSON[keyJSON]) {
-//                                                 await console.log("[found] needed sticker - " + data[key][j] + " - " + parsingJSON[keyJSON])
-//                                             }
-//                                         }
-//                                     }
-//                                 }
-
-//                             })
-//                         }
-//                         if (totalSum >= parseInt(parsingJSON.stickersTotalPrice)) {  // if total sum of stickers is bigger than in filter - buy weapon.
-//                             await console.log("[found] total sum of stickers is bigger than in filter. id: " + key)
-//                         }
-//                     }
-//                 })
-//             } // document.querySelectorAll("#sticker_info") // get stickers info - example: Наклейка: Astralis | Лондон 2018, Xyp9x | Берлин 2019
-//         })
-//     }
-// })
-
-// !!! notes
-// SELECT * FROM `stickers` WHERE name LIKE "%100%"
-// error #message, #BG_bottom, #BG_top, #mainContents
