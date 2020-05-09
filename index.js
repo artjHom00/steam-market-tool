@@ -18,7 +18,6 @@ var page; // same for the authorizing page
 // starting browser (crawler)
 (async () => {
   browser = await puppeteer.launch({
-    headless: false,
     args: ["--window-size=1920,1080"],
   });
 
@@ -142,15 +141,15 @@ io.on("connection", (socket) => {
                 flags.errors = true;
               });
             /* goes through all weapons  */
-            for (let g = 2; g <= skinsAmount; g++) {
+            for (let k = 2; k <= skinsAmount; k++) {
               /* hovers image to get additional info (especially stickers) */
               await marketPage
                 .hover(
-                  `.market_listing_row:nth-child(${g}) > .market_listing_item_img_container > img`
+                  `.market_listing_row:nth-child(${k}) > .market_listing_item_img_container > img`
                 )
                 .then(async () => {
                   /* gets array of stickers */
-                  let weaponStickers = await marketPage.evaluate(async () => {
+                  let weaponStickers = await marketPage.evaluate(() => {
                     return document
                       .querySelectorAll("#sticker_info")[1]
                       .innerText.trim()
@@ -164,20 +163,40 @@ io.on("connection", (socket) => {
                     if (repeats[weaponStickers[b]]) {
                       repeats[weaponStickers[b]] += 1;
                       if (repeats[weaponStickers[b]] == 3) {
+                        let prices = await marketPage.evaluate((k) => {
+                          let arr = [];
+                          arr.push(
+                            document
+                              .querySelector(
+                                `#market_commodity_buyrequests > span:nth-child(3)`
+                              )
+                              .innerText.trim()
+                          );
+                          arr.push(
+                            document
+                              .querySelector(
+                                `.market_listing_row:nth-child(${k}) > .market_listing_price_listings_block > .market_listing_right_cell.market_listing_their_price > .market_table_value > .market_listing_price.market_listing_price_with_fee`
+                              )
+                              .innerText.trim()
+                          );
+                          return arr;
+                        }, k);
                         easyvk({
                           token: flags.token,
-                        }).then(async (vk) => {
+                        }).then((vk) => {
                           /*
-                          Этот код сначала авторизует вас по логину и паролю,
-                          а затем отправит текстовое сообщение вам
-                          */
+                      Этот код сначала авторизует вас по логину и паролю,
+                      а затем отправит текстовое сообщение вам
+                      */
 
                           // делаем запрос на GET api.vk.com/method/messages.send
-                          await vk.call("messages.send", {
+                          vk.call("messages.send", {
                             user_id: flags.userid,
                             message: `[cs:go] market-tool\n🎊 Нашли новый скин!\n📌 Ссылка: ${
                               skinsPage[j]
-                            }\n📌 Ячейка №${g - 1}`,
+                            }\n📌 Ячейка №${k - 1}\n
+                        Первоначальная цена: ${prices[0]}\n
+                        Цена со стикером: ${prices[1]}`,
                             random_id: easyvk.randomId(),
                           });
                         });
