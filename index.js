@@ -186,10 +186,6 @@ io.on("connection", (socket) => {
                       repeats[weaponStickers[b]] = 1;
                     }
                   }
-                  /*
-                  TODO:
-                  CHECK FOR MULTIPLE STICKERS & SEND 'EM
-                  */
                 })
                 .catch(() => {
                   console.log("Error while parsin'. Don't worry, dats ok!");
@@ -205,4 +201,3 @@ io.on("connection", (socket) => {
     }
   });
 });
-// 226830567
