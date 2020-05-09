@@ -18,7 +18,6 @@ var page; // same for the authorizing page
 // starting browser (crawler)
 (async () => {
   browser = await puppeteer.launch({
-    headless: false,
     args: ["--window-size=1920,1080"],
   });
 
