@@ -59,7 +59,6 @@
         />
         <br />
         <button id="start" value="start parsing!">start parsing!</button>
-        <button id="stop" value="stop parsing!">stop parsing!</button>
       </div>
     </div>
     <div id="logIntoAccount">
@@ -89,7 +88,7 @@
         <input type="submit" value="enter" />
       </form>
     </div>
-    <script src="/js/libs/jquery.js"></script>
+    <script src="/js/jquery.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       /* connecting to server */
@@ -170,11 +169,6 @@
         e.preventDefault();
         socket.emit("start parsing", parseInt($("#delay").val()));
       });
-      /* stops parsing & passing user's defined delay */
-      $("#stop").click(function (e) {
-        e.preventDefault();
-        socket.emit("stop parsing");
-      });
       /*
       when submitting a form,
       all data goes to server,
@@ -188,7 +182,7 @@
             <h3>Authorization</h3>
           </div>
           <div class="popup-text">
-            <h2>Success! Wait 10+- seconds for authorization to proceed...</h2>
+            <h3>Success! Wait 10+- seconds for authorization to proceed...</h3>
           </div>
         `);
         // popup visible

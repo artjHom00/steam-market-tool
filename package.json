@@ -12,6 +12,7 @@
     "@admin-interface/core": "^0.1.30",
     "@admin-interface/express": "^0.1.32",
     "child_process": "^1.0.2",
+    "easyvk": "^2.7.1",
     "ejs": "^3.0.1",
     "express": "^4.17.1",
     "mysql2": "^2.1.0",
