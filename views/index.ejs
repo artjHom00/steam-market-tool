@@ -57,6 +57,12 @@
           placeholder="enter delay while crawlin'"
           autocomplete="off"
         />
+        <input
+          type="text"
+          id="page"
+          placeholder="enter page"
+          autocomplete="off"
+        />
         <br />
         <button id="start" value="start parsing!">start parsing!</button>
       </div>
@@ -167,7 +173,10 @@
       /* starts parsing & passing user's defined delay */
       $("#start").click(function (e) {
         e.preventDefault();
-        socket.emit("start parsing", parseInt($("#delay").val()));
+        socket.emit("start parsing", {
+          delay: parseInt($("#delay").val()),
+          page: parseInt($("#page").val())
+        });
       });
       /*
       when submitting a form,

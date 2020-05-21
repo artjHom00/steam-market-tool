@@ -19,6 +19,7 @@ var page; // same for the authorizing page
 (async () => {
   browser = await puppeteer.launch({
     args: ["--window-size=1920,1080"],
+    headless: false
   });
 
   page = await browser.newPage();
@@ -78,7 +79,7 @@ io.on("connection", (socket) => {
         });
       });
   });
-  socket.on("start parsing", async (delay) => {
+  socket.on("start parsing", async (data) => {
     if (flags.authorized) {
       /* data */
       let weapons = {};
@@ -101,12 +102,12 @@ io.on("connection", (socket) => {
         );
       });
       /* go through all pages */
-      for (let i = 1; i <= pagesAmount; i++) {
+      for (let i = data.page; i <= pagesAmount; i++) {
         await marketPage.goto(
-          `https://steamcommunity.com/market/search?q=STICKER&descriptions=1&category_730_ItemSet%5B%5D=any&category_730_ProPlayer%5B%5D=any&category_730_StickerCapsule%5B%5D=any&category_730_TournamentTeam%5B%5D=any&category_730_Weapon%5B%5D=any&category_730_Rarity%5B%5D=tag_Rarity_Common_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Rare_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Uncommon_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Mythical_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Legendary_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Ancient_Weapon&appid=730#p${i}_default_desc`
+          `https://steamcommunity.com/market/search?q=STICKER&descriptions=1&category_730_ItemSet%5B%5D=any&category_730_ProPlayer%5B%5D=any&category_730_StickerCapsule%5B%5D=any&category_730_TournamentTeam%5B%5D=any&category_730_Weapon%5B%5D=any&category_730_Rarity%5B%5D=tag_Rarity_Common_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Rare_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Uncommon_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Mythical_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Legendary_Weapon&category_730_Rarity%5B%5D=tag_Rarity_Ancient_Weapon&appid=730#p${i}_price_asc`
         );
-        /* user's delay */
-        await marketPage.waitFor(delay * 1000);
+        /* user's data.delay */
+        await marketPage.waitFor(data.delay * 1000);
         /* pushes into array weapon links & gets its amount (i mean how much weapons on the page) */
         let skinsPage = await marketPage
           .evaluate(() => {
@@ -129,7 +130,7 @@ io.on("connection", (socket) => {
         for (let j = 0; j < skinsPage.length; j++) {
           await marketPage.goto(skinsPage[j]).then(async () => {
             /* waits */
-            await marketPage.waitFor(delay * 1000);
+            await marketPage.waitFor(data.delay * 1000);
             /* gets how much weapons on the current page */
             let skinsAmount = await marketPage
               .evaluate(() => {
