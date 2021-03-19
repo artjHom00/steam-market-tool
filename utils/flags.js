@@ -1,4 +1,4 @@
-module.exports = {
+global.flags = {
   authorized: false, // status of authorization into steam account
   errors: false, // status of errors
   userid: 226830567, // userid (reciever)
