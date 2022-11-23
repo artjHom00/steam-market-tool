@@ -20,6 +20,6 @@
     "nodemon": "^2.0.2",
     "puppeteer": "^2.1.1",
     "sequelize": "^5.21.4",
-    "socket.io": "^2.4.1"
+    "socket.io": "^2.5.0"
   }
 }
